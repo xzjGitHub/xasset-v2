@@ -66,7 +66,6 @@ namespace Plugins.XAsset.Editor
             var assetBundleNames = manifest.bundles;
             var dirs = manifest.dirs;
 
-            List<string> used = new List<string>();   
             foreach (var item in manifest.assets)
             {
                 if (assetBundleNames[item.bundle] == assetBundleName)

@@ -63,7 +63,7 @@ namespace Plugins.XAsset.Editor
                     LaunchLocalServer.KillRunningAssetBundleServer();
                 }
             }
-
+			Utility.dataPath = System.Environment.CurrentDirectory;
             Utility.downloadURL = BuildScript.GetManifest().downloadURL;
             Utility.assetBundleMode = settings.runtimeMode;
             Utility.getPlatformDelegate = BuildScript.GetPlatformName;

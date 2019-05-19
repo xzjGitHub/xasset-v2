@@ -38,16 +38,17 @@ namespace Plugins.XAsset
         private static string[] _bundles = new string[0];
         private static Dictionary<string, int> _bundleAssets = new Dictionary<string, int>();
 
-        public static Dictionary<string, int> bundleAssets
-        {
-            get { return _bundleAssets; }
-        }
-
         // ReSharper disable once InconsistentNaming
         private static readonly List<Asset> _assets = new List<Asset>();
 
         // ReSharper disable once InconsistentNaming
         private static readonly List<Asset> _unusedAssets = new List<Asset>();
+
+        public static Dictionary<string, int> bundleAssets
+        {
+            get { return _bundleAssets; }
+        }
+
         private static string updatePath { get; set; }
 
         public static void Initialize(Action onSuccess, Action<string> onError)
@@ -59,45 +60,51 @@ namespace Plugins.XAsset
                 DontDestroyOnLoad(instance.gameObject);
             }
 
+            if (string.IsNullOrEmpty(Utility.dataPath)) Utility.dataPath = Application.streamingAssetsPath;
+
             Log(string.Format("Init->assetBundleMode {0} | dataPath {1}", Utility.assetBundleMode, Utility.dataPath));
 
             if (Utility.assetBundleMode)
             {
-                if (string.IsNullOrEmpty(Utility.dataPath)) Utility.dataPath = Application.streamingAssetsPath;
                 updatePath = Utility.updatePath;
                 var platform = Utility.GetPlatform();
                 var path = Path.Combine(Utility.dataPath, Path.Combine(Utility.AssetBundles, platform)) +
                            Path.DirectorySeparatorChar;
                 Bundles.OverrideBaseDownloadingUrl += Bundles_overrideBaseDownloadingURL;
-                Bundles.Initialize(path, platform, delegate
+                Bundles.Initialize(path, platform, () =>
                 {
                     var asset = LoadAsync(Utility.AssetsManifestAsset, typeof(AssetsManifest));
-                    asset.completed += delegate(Asset obj)
+                    asset.completed += obj =>
                     {
                         var manifest = obj.asset as AssetsManifest;
-                        if (manifest != null)
+                        if (manifest == null)
                         {
-                            if (string.IsNullOrEmpty(Utility.downloadURL)) Utility.downloadURL = manifest.downloadURL;
-                            Bundles.activeVariants = manifest.activeVariants;
-                            _bundles = manifest.bundles; 
-							var dirs = manifest.dirs;
-
-                            _bundleAssets = new Dictionary<string, int>(manifest.assets.Length);
-                            for (int i = 0, max = manifest.assets.Length; i < max; i++)
-                            {
-                                var item = manifest.assets[i];
-								_bundleAssets [string.Format ("{0}/{1}", dirs [item.dir], item.name)] = item.bundle;
-                            }
+                            if (onError != null) onError("manifest == null");
+                            return;
                         }
 
-                        if (onSuccess != null) onSuccess();
+                        if (string.IsNullOrEmpty(Utility.downloadURL))
+                            Utility.downloadURL = manifest.downloadURL;
+                        Bundles.activeVariants = manifest.activeVariants;
+                        _bundles = manifest.bundles;
+                        var dirs = manifest.dirs;
+                        _bundleAssets = new Dictionary<string, int>(manifest.assets.Length);
+                        for (int i = 0, max = manifest.assets.Length; i < max; i++)
+                        {
+                            var item = manifest.assets[i];
+                            _bundleAssets[string.Format("{0}/{1}", dirs[item.dir], item.name)] = item.bundle;
+                        }
+
+                        if (onSuccess != null)
+                            onSuccess();
                         obj.Release();
                     };
                 }, onError);
             }
             else
             {
-                if (onSuccess != null) onSuccess();
+                if (onSuccess != null)
+                    onSuccess();
             }
         }
 
@@ -122,7 +129,8 @@ namespace Plugins.XAsset
             for (int i = 0, max = _assets.Count; i < max; i++)
             {
                 var item = _assets[i];
-                if (!item.name.Equals(path)) continue;
+                if (!item.name.Equals(path))
+                    continue;
                 Unload(item);
                 break;
             }
@@ -145,7 +153,8 @@ namespace Plugins.XAsset
             for (var i = 0; i < _unusedAssets.Count; i++)
             {
                 var item = _unusedAssets[i];
-                if (!item.name.Equals(asset.name)) continue;
+                if (!item.name.Equals(asset.name))
+                    continue;
                 item.Unload();
                 _unusedAssets.RemoveAt(i);
                 return;
@@ -157,7 +166,8 @@ namespace Plugins.XAsset
             for (var i = 0; i < _assets.Count; i++)
             {
                 var item = _assets[i];
-                if (item.Update() || !item.IsUnused()) continue;
+                if (item.Update() || !item.IsUnused())
+                    continue;
                 _unusedAssets.Add(item);
                 _assets.RemoveAt(i);
                 i--;
@@ -192,7 +202,8 @@ namespace Plugins.XAsset
             for (int i = 0, max = _assets.Count; i < max; i++)
             {
                 var item = _assets[i];
-                if (!item.name.Equals(path)) continue;
+                if (!item.name.Equals(path))
+                    continue;
                 item.Retain();
                 return item;
             }
@@ -218,15 +229,22 @@ namespace Plugins.XAsset
             asset.Load();
             asset.Retain();
 
-            Log("Load->" + path);
+            Log(string.Format("Load->{0}|{1}", path, assetBundleName));
             return asset;
         }
 
         private static bool GetAssetBundleName(string path, out string assetBundleName)
         {
+            if (path.Equals(Utility.AssetsManifestAsset))
+            {
+                assetBundleName = Path.GetFileNameWithoutExtension(path).ToLower();
+                return true;
+            }
+
             assetBundleName = null;
             int bundle;
-            if (!_bundleAssets.TryGetValue(path, out bundle)) return false;
+            if (!_bundleAssets.TryGetValue(path, out bundle))
+                return false;
             assetBundleName = _bundles[bundle];
             return true;
         }
